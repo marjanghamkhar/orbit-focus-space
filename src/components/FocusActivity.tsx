@@ -18,6 +18,15 @@ import { useOrbit } from '../state/OrbitContext';
 import { EmptyState } from './EmptyState';
 import { Icon } from './Icon';
 
+interface MonthCell {
+  index: number;
+  label: string;
+  minutes: number;
+  count: number;
+  future: boolean;
+  current: boolean;
+}
+
 interface DayCell {
   day: number;
   start: number;
@@ -68,8 +77,31 @@ export function FocusActivity() {
 
   const [selected, setSelected] = useState(today);
   const [view, setView] = useState<MonthRef>(currentMonth);
+  const [chartMode, setChartMode] = useState<'daily' | 'monthly'>('daily');
+  const [yearView, setYearView] = useState(currentMonth.year);
 
   const byDay = useMemo(() => groupSessionsByDay(state.sessions), [state.sessions]);
+  const annualMonths: MonthCell[] = useMemo(() => {
+    const months = Array.from({ length: 12 }, (_, index) => ({
+      index,
+      label: new Date(yearView, index, 1).toLocaleDateString(undefined, { month: 'short' }),
+      minutes: 0,
+      count: 0,
+      future: yearView > currentMonth.year || (yearView === currentMonth.year && index > currentMonth.month),
+      current: yearView === currentMonth.year && index === currentMonth.month,
+    }));
+    for (const session of state.sessions) {
+      const date = new Date(session.completedAt);
+      if (date.getFullYear() !== yearView) continue;
+      const month = months[date.getMonth()];
+      month.minutes += session.minutes;
+      month.count += 1;
+    }
+    return months;
+  }, [state.sessions, yearView, currentMonth.year, currentMonth.month]);
+
+  const annualMinutes = annualMonths.reduce((sum, m) => sum + m.minutes, 0);
+  const annualActiveMonths = annualMonths.filter((m) => m.count > 0).length;
   const tasksByDay = useMemo(() => {
     const counts = new Map<string, number>();
     for (const task of state.tasks) {
@@ -127,6 +159,19 @@ export function FocusActivity() {
     setSelected(today);
   };
 
+  const showMonthly = () => {
+    setYearView(view.year);
+    setChartMode('monthly');
+  };
+
+  const openMonthFromYear = (monthIndex: number) => {
+    const next = { year: yearView, month: monthIndex };
+    if (yearView > currentMonth.year || (yearView === currentMonth.year && monthIndex > currentMonth.month)) return;
+    setView(next);
+    setSelected(sameMonth(next, currentMonth) ? today : dateInMonth(next, 1));
+    setChartMode('daily');
+  };
+
   const selectedActivity = byDay.get(dayKey(selected));
   const selectedMinutes = selectedActivity?.minutes ?? 0;
   const selectedSessions = selectedActivity?.sessions ?? [];
@@ -138,40 +183,96 @@ export function FocusActivity() {
   return (
     <div className="activity-sections">
       <section className="card activity-card activity-card--chart" aria-labelledby="activity-title">
-      <div className="card__head activity__head">
-        <div>
-          <h2 id="activity-title" className="card__title">
-            Focus activity
-          </h2>
-          <p className="card__sub" aria-live="polite">
-            {monthMinutes > 0
-              ? `${displayDuration(monthMinutes)} across ${plural(activeDays, 'day')} in ${monthLabel}`
-              : `No focus sessions recorded in ${monthLabel}`}
-          </p>
-        </div>
-        <div className="month-nav">
-          {(!isCurrentMonth || selected !== today) && (
-            <button type="button" className="btn btn--ghost btn--sm" onClick={goToToday}>
-              Today
-            </button>
+        <div className="card__head activity__head">
+          <div>
+            <h2 id="activity-title" className="card__title">Focus activity</h2>
+            <p className="card__sub" aria-live="polite">
+              {chartMode === 'daily'
+                ? (monthMinutes > 0
+                    ? `${displayDuration(monthMinutes)} across ${plural(activeDays, 'day')} in ${monthLabel}`
+                    : `No focus sessions recorded in ${monthLabel}`)
+                : (annualMinutes > 0
+                    ? `${displayDuration(annualMinutes)} across ${plural(annualActiveMonths, 'month')} in ${yearView}`
+                    : `No focus sessions recorded in ${yearView}`)}
+            </p>
+          </div>
+          {chartMode === 'daily' ? (
+            <div className="month-nav">
+              {(!isCurrentMonth || selected !== today) && (
+                <button type="button" className="btn btn--ghost btn--sm" onClick={goToToday}>Today</button>
+              )}
+              <button type="button" className="icon-btn month-nav__btn" onClick={() => goToMonth(-1)} aria-label="Previous month">
+                <Icon name="chevronRight" size={16} style={{ transform: 'rotate(180deg)' }} />
+              </button>
+              <span className="month-nav__label">{monthLabel}</span>
+              <button type="button" className="icon-btn month-nav__btn" onClick={() => goToMonth(1)} disabled={viewIsFuture} aria-label="Next month">
+                <Icon name="chevronRight" size={16} />
+              </button>
+            </div>
+          ) : (
+            <div className="month-nav">
+              {yearView !== currentMonth.year && (
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setYearView(currentMonth.year)}>This year</button>
+              )}
+              <button type="button" className="icon-btn month-nav__btn" onClick={() => setYearView((y) => y - 1)} aria-label="Previous year">
+                <Icon name="chevronRight" size={16} style={{ transform: 'rotate(180deg)' }} />
+              </button>
+              <span className="month-nav__label">{yearView}</span>
+              <button type="button" className="icon-btn month-nav__btn" onClick={() => setYearView((y) => y + 1)} disabled={yearView >= currentMonth.year} aria-label="Next year">
+                <Icon name="chevronRight" size={16} />
+              </button>
+            </div>
           )}
-          <button type="button" className="icon-btn month-nav__btn" onClick={() => goToMonth(-1)} aria-label="Previous month">
-            <Icon name="chevronRight" size={16} style={{ transform: 'rotate(180deg)' }} />
-          </button>
-          <span className="month-nav__label">{monthLabel}</span>
+        </div>
+
+        <div className="activity-mode-tabs" role="tablist" aria-label="Focus activity time range">
           <button
             type="button"
-            className="icon-btn month-nav__btn"
-            onClick={() => goToMonth(1)}
-            disabled={viewIsFuture}
-            aria-label="Next month"
+            id="focus-daily-tab"
+            role="tab"
+            aria-controls="focus-chart-panel"
+            aria-selected={chartMode === 'daily'}
+            tabIndex={chartMode === 'daily' ? 0 : -1}
+            className={`activity-mode-tab ${chartMode === 'daily' ? 'is-active' : ''}`}
+            onClick={() => setChartMode('daily')}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowRight' || e.key === 'End') {
+                e.preventDefault();
+                showMonthly();
+                document.getElementById('focus-monthly-tab')?.focus();
+              }
+            }}
           >
-            <Icon name="chevronRight" size={16} />
+            Daily
+          </button>
+          <button
+            type="button"
+            id="focus-monthly-tab"
+            role="tab"
+            aria-controls="focus-chart-panel"
+            aria-selected={chartMode === 'monthly'}
+            tabIndex={chartMode === 'monthly' ? 0 : -1}
+            className={`activity-mode-tab ${chartMode === 'monthly' ? 'is-active' : ''}`}
+            onClick={showMonthly}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowLeft' || e.key === 'Home') {
+                e.preventDefault();
+                setChartMode('daily');
+                document.getElementById('focus-daily-tab')?.focus();
+              }
+            }}
+          >
+            Monthly
           </button>
         </div>
-      </div>
 
-        <FocusChart days={days} selected={selected} onSelect={select} monthLabel={monthLabel} />
+        <div id="focus-chart-panel" role="tabpanel" aria-labelledby={chartMode === 'daily' ? 'focus-daily-tab' : 'focus-monthly-tab'}>
+          {chartMode === 'daily' ? (
+            <FocusChart days={days} selected={selected} onSelect={select} monthLabel={monthLabel} />
+          ) : (
+            <YearChart months={annualMonths} year={yearView} selectedMonth={view.year === yearView ? view.month : null} onSelectMonth={openMonthFromYear} />
+          )}
+        </div>
       </section>
 
       <section className="card activity-card activity-card--calendar" aria-labelledby="calendar-title">
@@ -263,6 +364,99 @@ function useRovingKeys(days: DayCell[], selected: number, onSelect: (t: number) 
   // When the selection isn't in this month, the first day takes the tab stop.
   const tabStop = index === -1 ? 0 : index;
   return { refs, onKeyDown, tabStop };
+}
+
+
+/** One full year's recorded focus time; selecting a month drills into its daily chart. */
+function YearChart({
+  months,
+  year,
+  selectedMonth,
+  onSelectMonth,
+}: {
+  months: MonthCell[];
+  year: number;
+  selectedMonth: number | null;
+  onSelectMonth: (month: number) => void;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const peak = Math.max(0, ...months.map((m) => m.minutes));
+  const max = peak > 0 ? niceMax(peak) : 1;
+  const empty = peak === 0;
+  const hovered = hover === null ? null : months[hover];
+
+  return (
+    <div className="chart month-chart">
+      <div className="chart__caption">
+        <div className="chart__caption-main">
+          <span className="chart__legend-swatch" aria-hidden="true" />
+          <strong>Monthly focus totals</strong>
+        </div>
+        <span>Total time recorded each month · {year}</span>
+      </div>
+      <div className="chart__plot" onMouseLeave={() => setHover(null)}>
+        <div className="chart__grid" aria-hidden="true">
+          {[1, 0.75, 0.5, 0.25, 0].map((fraction) => (
+            <div key={fraction} className="chart__gridline" style={{ bottom: `${fraction * 100}%` }}>
+              <span className="chart__ylabel">
+                {empty ? (fraction === 0 ? '0' : '') : axisDuration(Math.round(max * fraction))}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="chart__bars" role="group" aria-label={`Monthly focus time in ${year}`}>
+          {months.map((m, i) => (
+            <button
+              key={m.index}
+              type="button"
+              className={`chart__col ${m.index === selectedMonth ? 'is-selected' : ''} ${m.current ? 'is-today' : ''} ${m.minutes > 0 ? 'has-bar' : ''}`}
+              disabled={m.future}
+              aria-label={`${m.label} ${year}: ${displayDuration(m.minutes)}, ${plural(m.count, 'session')}. View daily details.`}
+              onClick={() => onSelectMonth(m.index)}
+              onMouseEnter={() => setHover(i)}
+              onFocus={() => setHover(i)}
+              onBlur={() => setHover(null)}
+            >
+              {m.minutes > 0 && <span className="chart__bar" style={{ height: `${(m.minutes / max) * 100}%` }} />}
+            </button>
+          ))}
+        </div>
+        {hovered && !hovered.future && (
+          <div
+            className={`chart__tip ${hover! < 2 ? 'is-start' : hover! > 9 ? 'is-end' : ''}`}
+            style={{ left: `${((hover! + 0.5) / 12) * 100}%` }}
+            aria-hidden="true"
+          >
+            <span className="chart__tip-date">{hovered.label} {year}</span>
+            <span className="chart__tip-value">{displayDuration(hovered.minutes)} · {plural(hovered.count, 'session')}</span>
+          </div>
+        )}
+        {empty && (
+          <div className="chart__empty">
+            <Icon name="zap" size={16} />
+            <span>No sessions recorded in {year} yet</span>
+          </div>
+        )}
+      </div>
+      <div className="chart__x" aria-hidden="true">
+        {months.map((m) => (
+          <span key={m.index} className={m.future ? 'is-future' : ''} style={{ left: `${((m.index + 0.5) / 12) * 100}%` }}>
+            {m.label}
+          </span>
+        ))}
+      </div>
+      <div className="chart__footnote">Select a month to explore its daily focus activity.</div>
+      <table className="sr-only">
+        <caption>Monthly focus totals for {year}</caption>
+        <thead><tr><th scope="col">Month</th><th scope="col">Minutes</th><th scope="col">Sessions</th></tr></thead>
+        <tbody>
+          {months.filter((m) => !m.future).map((m) => (
+            <tr key={m.index}><th scope="row">{m.label}</th><td>{m.minutes}</td><td>{m.count}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function FocusChart({
