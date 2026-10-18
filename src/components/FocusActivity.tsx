@@ -1,0 +1,371 @@
+import { useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useNow } from '../hooks/useNow';
+import {
+  addMonths,
+  dateInMonth,
+  dayKey,
+  daysInMonth,
+  formatDayLabel,
+  formatMonth,
+  groupSessionsByDay,
+  monthOf,
+  niceMax,
+  sameMonth,
+  type MonthRef,
+} from '../lib/activity';
+import { formatTimeOfDay, plural, startOfDay } from '../lib/time';
+import { useOrbit } from '../state/OrbitContext';
+import { EmptyState } from './EmptyState';
+import { Icon } from './Icon';
+
+interface DayCell {
+  day: number;
+  start: number;
+  minutes: number;
+  count: number;
+  future: boolean;
+  isToday: boolean;
+}
+
+const shortDate = (t: number) => new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+const longDate = (t: number) =>
+  new Date(t).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+const describe = (d: DayCell) =>
+  d.count > 0 ? `${d.minutes} focus minutes, ${plural(d.count, 'session')}` : 'No focus sessions';
+
+/** Weekday initials, Monday first (2024-01-01 was a Monday). */
+const WEEKDAYS = Array.from({ length: 7 }, (_, i) => ({
+  narrow: new Date(2024, 0, 1 + i).toLocaleDateString(undefined, { weekday: 'narrow' }),
+  long: new Date(2024, 0, 1 + i).toLocaleDateString(undefined, { weekday: 'long' }),
+}));
+
+/**
+ * Overview "Focus activity": daily focus minutes for a month (bar chart), a month calendar,
+ * and the selected day's details. Reads recorded sessions only — never writes state.
+ */
+export function FocusActivity() {
+  const { state } = useOrbit();
+  useNow(60_000); // re-render now and then so "today" rolls over at midnight
+  const today = startOfDay(Date.now());
+  const currentMonth = monthOf(today);
+
+  const [selected, setSelected] = useState(today);
+  const [view, setView] = useState<MonthRef>(currentMonth);
+
+  const byDay = useMemo(() => groupSessionsByDay(state.sessions), [state.sessions]);
+
+  const days: DayCell[] = Array.from({ length: daysInMonth(view) }, (_, i) => {
+    const start = dateInMonth(view, i + 1);
+    const activity = byDay.get(dayKey(start));
+    return {
+      day: i + 1,
+      start,
+      minutes: activity?.minutes ?? 0,
+      count: activity?.sessions.length ?? 0,
+      future: start > today,
+      isToday: start === today,
+    };
+  });
+
+  const monthMinutes = days.reduce((sum, d) => sum + d.minutes, 0);
+  const activeDays = days.filter((d) => d.count > 0).length;
+  const monthLabel = formatMonth(view);
+  const isCurrentMonth = sameMonth(view, currentMonth);
+  const viewIsFuture = view.year > currentMonth.year || (view.year === currentMonth.year && view.month >= currentMonth.month);
+
+  const select = (start: number) => {
+    if (start > today) return;
+    setSelected(start);
+    const m = monthOf(start);
+    if (!sameMonth(m, view)) setView(m);
+  };
+
+  const goToMonth = (delta: number) => {
+    const next = addMonths(view, delta);
+    setView(next);
+    // Keep the selection inside the visible month: same day number, clamped to the month and to today.
+    const day = Math.min(new Date(selected).getDate(), daysInMonth(next));
+    setSelected(Math.min(dateInMonth(next, day), today));
+  };
+
+  const goToToday = () => {
+    setView(currentMonth);
+    setSelected(today);
+  };
+
+  const selectedActivity = byDay.get(dayKey(selected));
+  const selectedMinutes = selectedActivity?.minutes ?? 0;
+  const selectedSessions = selectedActivity?.sessions ?? [];
+  const selectedLabel = formatDayLabel(selected, today);
+
+  return (
+    <section className="card activity" aria-labelledby="activity-title">
+      <div className="card__head activity__head">
+        <div>
+          <h2 id="activity-title" className="card__title">
+            Focus activity
+          </h2>
+          <p className="card__sub" aria-live="polite">
+            {monthMinutes > 0
+              ? `${monthMinutes} min across ${plural(activeDays, 'day')} in ${monthLabel}`
+              : `No focus sessions recorded in ${monthLabel}`}
+          </p>
+        </div>
+        <div className="month-nav">
+          {(!isCurrentMonth || selected !== today) && (
+            <button type="button" className="btn btn--ghost btn--sm" onClick={goToToday}>
+              Today
+            </button>
+          )}
+          <button type="button" className="icon-btn month-nav__btn" onClick={() => goToMonth(-1)} aria-label="Previous month">
+            <Icon name="chevronRight" size={16} style={{ transform: 'rotate(180deg)' }} />
+          </button>
+          <span className="month-nav__label">{monthLabel}</span>
+          <button
+            type="button"
+            className="icon-btn month-nav__btn"
+            onClick={() => goToMonth(1)}
+            disabled={viewIsFuture}
+            aria-label="Next month"
+          >
+            <Icon name="chevronRight" size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div className="activity__grid">
+        <FocusChart days={days} selected={selected} onSelect={select} monthLabel={monthLabel} />
+        <MonthCalendar view={view} days={days} selected={selected} onSelect={select} />
+      </div>
+
+      <div className="day-detail" aria-live="polite">
+        <div className="day-detail__summary">
+          <div className="day-detail__title">
+            <h3>{selectedLabel}</h3>
+            <span>{selectedLabel === 'Today' || selectedLabel === 'Yesterday' ? longDate(selected) : new Date(selected).getFullYear()}</span>
+          </div>
+          <div className="day-detail__stats">
+            <div>
+              <span className="day-detail__value">{selectedMinutes}</span>
+              <span className="day-detail__label">focus minutes</span>
+            </div>
+            <div>
+              <span className="day-detail__value">{selectedSessions.length}</span>
+              <span className="day-detail__label">{selectedSessions.length === 1 ? 'session' : 'sessions'}</span>
+            </div>
+          </div>
+        </div>
+
+        {selectedSessions.length > 0 ? (
+          <ul className="session-list day-detail__list">
+            {selectedSessions.map((s) => (
+              <li key={s.id} className="session-item">
+                <span className="session-item__icon" aria-hidden="true">
+                  <Icon name="check" size={13} strokeWidth={3} />
+                </span>
+                <span className="session-item__body">
+                  <span className="session-item__task">{s.taskTitle ?? 'Free focus'}</span>
+                  <span className="session-item__time">{formatTimeOfDay(s.completedAt)}</span>
+                </span>
+                <span className="session-item__min">{s.minutes} min</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="day-detail__list">
+            <EmptyState icon="clock" title={selected === today ? 'No focus sessions yet today' : 'No focus sessions this day'} compact>
+              {selected === today
+                ? 'Finish a focus session and it will show up here.'
+                : 'Nothing was recorded on this day — and that’s okay. Rest days count too.'}
+            </EmptyState>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Roving-tabindex keyboard navigation shared by the chart and calendar. */
+function useRovingKeys(days: DayCell[], selected: number, onSelect: (t: number) => void, vertical: number) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const index = days.findIndex((d) => d.start === selected);
+  const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>, i: number) => {
+    const delta =
+      e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : vertical && e.key === 'ArrowDown' ? vertical : vertical && e.key === 'ArrowUp' ? -vertical : 0;
+    let target = delta ? i + delta : e.key === 'Home' ? 0 : e.key === 'End' ? days.length - 1 : -1;
+    if (target === -1) return;
+    e.preventDefault();
+    target = Math.max(0, Math.min(days.length - 1, target));
+    // Never move onto a future day.
+    while (target > 0 && days[target].future) target--;
+    onSelect(days[target].start);
+    refs.current[target]?.focus();
+  };
+  // When the selection isn't in this month, the first day takes the tab stop.
+  const tabStop = index === -1 ? 0 : index;
+  return { refs, onKeyDown, tabStop };
+}
+
+function FocusChart({
+  days,
+  selected,
+  onSelect,
+  monthLabel,
+}: {
+  days: DayCell[];
+  selected: number;
+  onSelect: (t: number) => void;
+  monthLabel: string;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const { refs, onKeyDown, tabStop } = useRovingKeys(days, selected, onSelect, 0);
+  const peak = Math.max(0, ...days.map((d) => d.minutes));
+  const max = peak > 0 ? niceMax(peak) : 60;
+  const empty = peak === 0;
+  const ticks = [1, 8, 15, 22, 29].filter((d) => d <= days.length);
+  const tip = hover !== null ? days[hover] : null;
+
+  return (
+    <div className="chart">
+      <div className="chart__plot" onMouseLeave={() => setHover(null)}>
+        <div className="chart__grid" aria-hidden="true">
+          {[1, 0.5, 0].map((f) => (
+            <div key={f} className="chart__gridline" style={{ bottom: `${f * 100}%` }}>
+              <span className="chart__ylabel">{f === 1 ? `${Math.round(max * f)} min` : Math.round(max * f)}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="chart__bars" role="group" aria-label={`Daily focus minutes, ${monthLabel}`}>
+          {days.map((d, i) => (
+            <button
+              key={d.day}
+              ref={(el) => (refs.current[i] = el)}
+              type="button"
+              className={`chart__col ${d.start === selected ? 'is-selected' : ''} ${d.isToday ? 'is-today' : ''}`}
+              disabled={d.future}
+              tabIndex={i === tabStop ? 0 : -1}
+              aria-pressed={d.start === selected}
+              aria-label={`${shortDate(d.start)}${d.isToday ? ' (today)' : ''}: ${describe(d)}`}
+              onClick={() => onSelect(d.start)}
+              onKeyDown={(e) => onKeyDown(e, i)}
+              onMouseEnter={() => setHover(i)}
+              onFocus={() => setHover(i)}
+              onBlur={() => setHover(null)}
+            >
+              {d.minutes > 0 && <span className="chart__bar" style={{ height: `${(d.minutes / max) * 100}%` }} />}
+            </button>
+          ))}
+        </div>
+
+        {tip && !tip.future && (
+          <div
+            className={`chart__tip ${hover! < 4 ? 'is-start' : hover! > days.length - 5 ? 'is-end' : ''}`}
+            style={{ left: `${((hover! + 0.5) / days.length) * 100}%` }}
+            aria-hidden="true"
+          >
+            <span className="chart__tip-date">
+              {shortDate(tip.start)}
+              {tip.isToday ? ' · Today' : ''}
+            </span>
+            <span className="chart__tip-value">{tip.count > 0 ? `${tip.minutes} min · ${plural(tip.count, 'session')}` : 'No focus'}</span>
+          </div>
+        )}
+
+        {empty && (
+          <div className="chart__empty">
+            <Icon name="zap" size={16} />
+            <span>No focus sessions this month yet</span>
+          </div>
+        )}
+      </div>
+
+      <div className="chart__x" aria-hidden="true">
+        {ticks.map((t) => (
+          <span key={t} style={{ left: `${((t - 0.5) / days.length) * 100}%` }}>
+            {t}
+          </span>
+        ))}
+      </div>
+
+      <table className="sr-only">
+        <caption>Focus minutes per day, {monthLabel}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Minutes</th>
+            <th scope="col">Sessions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {days
+            .filter((d) => !d.future)
+            .map((d) => (
+              <tr key={d.day}>
+                <th scope="row">{shortDate(d.start)}</th>
+                <td>{d.minutes}</td>
+                <td>{d.count}</td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function MonthCalendar({
+  view,
+  days,
+  selected,
+  onSelect,
+}: {
+  view: MonthRef;
+  days: DayCell[];
+  selected: number;
+  onSelect: (t: number) => void;
+}) {
+  const { refs, onKeyDown, tabStop } = useRovingKeys(days, selected, onSelect, 7);
+  // Monday-first offset of the 1st of the month.
+  const offset = (new Date(view.year, view.month, 1).getDay() + 6) % 7;
+
+  return (
+    <div className="cal">
+      <div className="cal__weekdays" aria-hidden="true">
+        {WEEKDAYS.map((w) => (
+          <span key={w.long}>{w.narrow}</span>
+        ))}
+      </div>
+      <div className="cal__grid" role="group" aria-label={`Calendar, ${formatMonth(view)}`}>
+        {Array.from({ length: offset }, (_, i) => (
+          <span key={`pad-${i}`} aria-hidden="true" />
+        ))}
+        {days.map((d, i) => (
+          <button
+            key={d.day}
+            ref={(el) => (refs.current[i] = el)}
+            type="button"
+            className={`cal__day ${d.isToday ? 'is-today' : ''} ${d.start === selected ? 'is-selected' : ''} ${d.count > 0 ? 'has-activity' : ''}`}
+            disabled={d.future}
+            tabIndex={i === tabStop ? 0 : -1}
+            aria-pressed={d.start === selected}
+            aria-current={d.isToday ? 'date' : undefined}
+            aria-label={`${longDate(d.start)}${d.isToday ? ', today' : ''}: ${describe(d)}`}
+            onClick={() => onSelect(d.start)}
+            onKeyDown={(e) => onKeyDown(e, i)}
+          >
+            <span className="cal__num">{d.day}</span>
+            <span className="cal__dot" aria-hidden="true" />
+          </button>
+        ))}
+      </div>
+      <div className="cal__legend" aria-hidden="true">
+        <span>
+          <i className="cal__legend-dot" /> Focus recorded
+        </span>
+        <span>
+          <i className="cal__legend-today" /> Today
+        </span>
+      </div>
+    </div>
+  );
+}
