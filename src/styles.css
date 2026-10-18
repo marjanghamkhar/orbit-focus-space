@@ -3622,3 +3622,101 @@ kbd {
     height: 206px;
   }
 }
+
+
+/* Calendar key: clearly separated in a right-side column. */
+.activity-card--calendar > .cal {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+}
+
+.cal__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 206px;
+  gap: 38px;
+  align-items: start;
+}
+
+.cal__dates {
+  min-width: 0;
+}
+
+.activity-card--calendar .cal__legend {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 17px;
+  min-width: 0;
+  margin: 0;
+  padding: 6px 0 6px 24px;
+  border-left: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.cal__legend-title {
+  margin: 0 0 1px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .015em;
+  color: var(--text-2);
+}
+
+.activity-card--calendar .cal__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  color: var(--text-2);
+}
+
+.cal__legend-item > i {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.cal__legend-item .cal__legend-dot {
+  width: 8px;
+  height: 8px;
+  margin: 2px;
+}
+
+.cal__legend-item > span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* On narrower screens, keep the key in a distinct compact section. */
+@media (max-width: 720px) {
+  .cal__layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .activity-card--calendar .cal__legend {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: center;
+    gap: 10px 15px;
+    padding: 17px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+  }
+
+  .cal__legend-title {
+    grid-column: 1 / -1;
+  }
+
+  .activity-card--calendar .cal__legend-item {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 380px) {
+  .activity-card--calendar .cal__legend {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
