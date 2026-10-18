@@ -3516,3 +3516,109 @@ kbd {
     align-self: flex-start;
   }
 }
+
+
+/* Focus activity: Daily | Monthly view switcher */
+.activity-mode-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 28px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.activity-mode-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 100px;
+  min-height: 38px;
+  padding: 7px 20px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 650;
+  transition: color .18s, background .18s, box-shadow .18s;
+}
+
+.activity-mode-tab:hover:not(.is-active) {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.activity-mode-tab.is-active {
+  color: var(--accent-text);
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.activity-mode-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#focus-chart-panel {
+  min-width: 0;
+}
+
+/* Monthly comparison uses the same chart frame as the daily view. */
+.activity-card--chart .month-chart .chart__plot {
+  height: 250px;
+}
+
+.activity-card--chart .month-chart .chart__col {
+  padding: 0 8px;
+  border-radius: 9px 9px 0 0;
+}
+
+.activity-card--chart .month-chart .chart__bar {
+  width: 100%;
+  max-width: 46px;
+  border-radius: 7px 7px 0 0;
+}
+
+.activity-card--chart .month-chart .chart__x span {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.activity-card--chart .month-chart .chart__x span.is-future {
+  color: var(--border-strong);
+}
+
+@media (max-width: 560px) {
+  .activity-mode-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: 22px;
+  }
+
+  .activity-mode-tab {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .activity-card--chart .month-chart .chart__col {
+    padding: 0 3px;
+  }
+
+  .activity-card--chart .month-chart .chart__bar {
+    max-width: 28px;
+    border-radius: 4px 4px 0 0;
+  }
+
+  .activity-card--chart .month-chart .chart__x span {
+    font-size: 10px;
+    letter-spacing: -.01em;
+  }
+
+  .activity-card--chart .month-chart .chart__plot {
+    height: 206px;
+  }
+}
