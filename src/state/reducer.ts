@@ -1,3 +1,4 @@
+import { dayKey } from '../lib/activity';
 import { clampDuration, createIdleTimer, MAX_GOAL, MIN_GOAL } from '../lib/storage';
 import { FREE_FOCUS_KEY, type FocusSession, type FocusTimer, type OrbitState, type Task } from '../lib/types';
 
@@ -5,8 +6,8 @@ export type Action =
   | { type: 'addTask'; task: Task }
   | { type: 'restoreTask'; task: Task; index: number; timer: FocusTimer | null; now: number }
   | { type: 'toggleTask'; id: string; now: number }
-  | { type: 'deleteTask'; id: string }
-  | { type: 'setGoal'; goal: number }
+  | { type: 'deleteTask'; id: string; now: number }
+  | { type: 'setGoal'; goal: number; now: number }
   /** Open a task's (or free focus) timer in Focus Mode. Pauses any other running timer. */
   | { type: 'selectTimer'; key: string; now: number }
   /** Change the active timer's duration. Only while idle or completed. */
@@ -33,6 +34,24 @@ const withTimer = (state: OrbitState, key: string, timer: FocusTimer): OrbitStat
   ...state,
   timers: { ...state.timers, [key]: timer },
 });
+
+/**
+ * Snapshot days when the task goal is reached.
+ * Today's entry is recalculated when tasks or the target change, while previous
+ * days stay frozen so later changes don't rewrite the calendar's history.
+ */
+function syncGoalAchievement(state: OrbitState, now: number): OrbitState {
+  const day = dayKey(now);
+  const completed = state.tasks.filter((t) => t.completed && t.completedAt !== null && dayKey(t.completedAt) === day).length;
+  const reached = completed >= state.dailyGoal;
+  const previous = state.goalAchievements[day];
+  if (reached && previous === state.dailyGoal) return state;
+  if (!reached && previous === undefined) return state;
+  const goalAchievements = { ...state.goalAchievements };
+  if (reached) goalAchievements[day] = state.dailyGoal;
+  else delete goalAchievements[day];
+  return { ...state, goalAchievements };
+}
 
 /** Records a finished countdown exactly once (the session id is derived from the timer's start). */
 function completeTimer(state: OrbitState, key: string): OrbitState {
@@ -114,7 +133,7 @@ export function reducer(state: OrbitState, action: Action): OrbitState {
           next = withTimer(next, action.task.id, t);
         }
       }
-      return next;
+      return syncGoalAchievement(next, action.now);
     }
 
     case 'toggleTask': {
@@ -127,7 +146,7 @@ export function reducer(state: OrbitState, action: Action): OrbitState {
       let next: OrbitState = { ...state, tasks };
       // Finishing a task mid-session pauses its timer (progress is kept if it's reopened).
       if (completing) next = pauseOrComplete(next, action.id, action.now);
-      return next;
+      return syncGoalAchievement(next, action.now);
     }
 
     case 'deleteTask': {
@@ -135,12 +154,15 @@ export function reducer(state: OrbitState, action: Action): OrbitState {
       const tasks = state.tasks.filter((t) => t.id !== action.id);
       const timers = { ...state.timers };
       delete timers[action.id];
-      return { ...state, tasks, timers, activeKey: state.activeKey === action.id ? FREE_FOCUS_KEY : state.activeKey };
+      return syncGoalAchievement(
+        { ...state, tasks, timers, activeKey: state.activeKey === action.id ? FREE_FOCUS_KEY : state.activeKey },
+        action.now,
+      );
     }
 
     case 'setGoal': {
       const goal = Math.min(MAX_GOAL, Math.max(MIN_GOAL, Math.round(action.goal)));
-      return goal === state.dailyGoal ? state : { ...state, dailyGoal: goal };
+      return goal === state.dailyGoal ? state : syncGoalAchievement({ ...state, dailyGoal: goal }, action.now);
     }
 
     case 'selectTimer': {
