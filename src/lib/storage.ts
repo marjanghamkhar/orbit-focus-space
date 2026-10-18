@@ -112,7 +112,7 @@ export function parseState(raw: unknown): OrbitState {
   if (isObj(raw.goalAchievements)) {
     for (const [day, level] of Object.entries(raw.goalAchievements)) {
       const n = num(level);
-      if (/^\\d{4}-\\d{2}-\\d{2}$/.test(day) && n !== null && Number.isInteger(n) && n >= MIN_GOAL && n <= MAX_GOAL) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(day) && n !== null && Number.isInteger(n) && n >= MIN_GOAL && n <= MAX_GOAL) {
         goalAchievements[day] = n;
       }
     }
