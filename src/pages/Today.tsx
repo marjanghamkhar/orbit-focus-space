@@ -184,7 +184,7 @@ export function Today() {
                 <button
                   type="button"
                   className="stepper__btn"
-                  onClick={() => dispatch({ type: 'setGoal', goal: goal - 1 })}
+                  onClick={() => dispatch({ type: 'setGoal', goal: goal - 1, now: Date.now() })}
                   disabled={goal <= MIN_GOAL}
                   aria-label="Decrease daily goal"
                 >
@@ -196,7 +196,7 @@ export function Today() {
                 <button
                   type="button"
                   className="stepper__btn"
-                  onClick={() => dispatch({ type: 'setGoal', goal: goal + 1 })}
+                  onClick={() => dispatch({ type: 'setGoal', goal: goal + 1, now: Date.now() })}
                   disabled={goal >= MAX_GOAL}
                   aria-label="Increase daily goal"
                 >
