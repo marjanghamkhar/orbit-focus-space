@@ -58,6 +58,8 @@ export interface FocusTimer {
 export interface OrbitState {
   tasks: Task[];
   dailyGoal: number;
+  /** Local YYYY-MM-DD -> goal achieved that day, recorded at the time. */
+  goalAchievements: Record<string, number>;
   sessions: FocusSession[];
   /** Per-task timers (task id → timer) plus the free-focus timer. Created on first use. */
   timers: Record<string, FocusTimer>;
