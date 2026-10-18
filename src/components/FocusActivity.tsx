@@ -592,7 +592,9 @@ function MonthCalendar({
 
   return (
     <div className="cal">
-      <div className="cal__weekdays" aria-hidden="true">
+      <div className="cal__layout">
+        <div className="cal__dates">
+          <div className="cal__weekdays" aria-hidden="true">
         {WEEKDAYS.map((w) => (
           <span key={w.long}>{w.narrow}</span>
         ))}
@@ -620,16 +622,22 @@ function MonthCalendar({
           </button>
         ))}
       </div>
-      <div className="cal__legend" aria-hidden="true">
-        <span>
-          <i className="cal__legend-goal" /> Daily task goal met
-        </span>
-        <span>
-          <i className="cal__legend-dot" /> Focus recorded
-        </span>
-        <span>
-          <i className="cal__legend-today" /> Today
-        </span>
+        </div>
+        <aside className="cal__legend" aria-label="Calendar color key">
+          <p className="cal__legend-title">Calendar key</p>
+          <div className="cal__legend-item">
+            <i className="cal__legend-goal" aria-hidden="true" />
+            <span>Daily task goal met</span>
+          </div>
+          <div className="cal__legend-item">
+            <i className="cal__legend-dot" aria-hidden="true" />
+            <span>Focus recorded</span>
+          </div>
+          <div className="cal__legend-item">
+            <i className="cal__legend-today" aria-hidden="true" />
+            <span>Today</span>
+          </div>
+        </aside>
       </div>
     </div>
   );
