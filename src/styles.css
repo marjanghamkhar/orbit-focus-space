@@ -2931,3 +2931,174 @@ kbd {
     transition: none !important;
   }
 }
+
+/* =========================================================
+   Focused workspace shell — My Tasks is the homepage.
+   Navigation lives beside the page heading, not in a menu.
+   ========================================================= */
+.app {
+  display: block;
+  min-height: 100vh;
+}
+
+.main {
+  padding: 52px 40px 80px;
+}
+
+.page {
+  max-width: 1040px;
+}
+
+.page-header--tasks {
+  align-items: flex-start;
+}
+
+.page-header__actions,
+.workspace-links {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.workspace-links {
+  flex: none;
+  padding-top: 24px;
+}
+
+.workspace-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 17px;
+  border: 1px solid var(--border-strong);
+  border-radius: 11px;
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 650;
+  white-space: nowrap;
+  transition: background 0.18s, border-color 0.18s, transform 0.18s var(--ease-out);
+}
+
+.workspace-link:hover {
+  background: var(--accent-soft);
+  border-color: #cfc7fb;
+  color: var(--accent-text);
+  transform: translateY(-1px);
+}
+
+.workspace-link--accent {
+  border-color: #d8d1ff;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.workspace-link--accent:hover {
+  background: var(--accent-soft-2);
+}
+
+.workspace-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.floating-session {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 30;
+  width: min(320px, calc(100vw - 32px));
+}
+
+.floating-session:empty {
+  display: none;
+}
+
+.floating-session .session-pill {
+  box-shadow: var(--shadow);
+}
+
+.app:has(.floating-session .session-pill) .main {
+  padding-bottom: 120px;
+}
+
+.toast-region {
+  left: 50%;
+  bottom: 22px;
+}
+
+.app:has(.floating-session .session-pill) ~ .toast-region {
+  bottom: 100px;
+}
+
+@media (max-width: 860px) {
+  .main {
+    padding: 32px 20px 68px;
+  }
+
+  .app:has(.floating-session .session-pill) .main {
+    padding-bottom: 115px;
+  }
+
+  .page-header--tasks {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .workspace-links {
+    padding-top: 16px;
+    gap: 8px;
+  }
+
+  .workspace-link {
+    min-height: 38px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  .floating-session {
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .toast-region {
+    bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+
+  .app:has(.floating-session .session-pill) ~ .toast-region {
+    bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+
+  .page-header__actions {
+    justify-content: flex-start;
+  }
+
+  .page--focus .page-header__back {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 560px) {
+  .main {
+    padding: 24px 16px 64px;
+  }
+
+  .page-header--tasks {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .workspace-links {
+    justify-content: flex-end;
+    padding-top: 0;
+  }
+
+  .workspace-link {
+    flex: 1;
+  }
+}
