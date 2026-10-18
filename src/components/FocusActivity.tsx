@@ -23,6 +23,9 @@ interface DayCell {
   start: number;
   minutes: number;
   count: number;
+  tasksDone: number;
+  goal: number | null;
+  goalMet: boolean;
   future: boolean;
   isToday: boolean;
 }
@@ -30,8 +33,17 @@ interface DayCell {
 const shortDate = (t: number) => new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 const longDate = (t: number) =>
   new Date(t).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-const describe = (d: DayCell) =>
-  d.count > 0 ? `${d.minutes} focus minutes, ${plural(d.count, 'session')}` : 'No focus sessions';
+/** Display long sessions in hours without implying a 60-minute cap. */
+const displayDuration = (minutes: number): string => {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return hours === 0 ? `${minutes} min` : rest === 0 ? `${hours} hr` : `${hours} hr ${rest} min`;
+};
+const describe = (d: DayCell) => {
+  const focus = d.count > 0 ? `${displayDuration(d.minutes)} focused, ${plural(d.count, 'session')}` : 'No focus sessions';
+  const goals = d.goalMet ? 'Daily task goal achieved' : `${plural(d.tasksDone, 'task')} completed`;
+  return `${focus}; ${goals}`;
+};
 
 /** Weekday initials, Monday first (2024-01-01 was a Monday). */
 const WEEKDAYS = Array.from({ length: 7 }, (_, i) => ({
@@ -53,17 +65,34 @@ export function FocusActivity() {
   const [view, setView] = useState<MonthRef>(currentMonth);
 
   const byDay = useMemo(() => groupSessionsByDay(state.sessions), [state.sessions]);
+  const tasksByDay = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const task of state.tasks) {
+      if (task.completed && task.completedAt !== null) {
+        const key = dayKey(task.completedAt);
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [state.tasks]);
 
   const days: DayCell[] = Array.from({ length: daysInMonth(view) }, (_, i) => {
     const start = dateInMonth(view, i + 1);
-    const activity = byDay.get(dayKey(start));
+    const key = dayKey(start);
+    const activity = byDay.get(key);
+    const tasksDone = tasksByDay.get(key) ?? 0;
+    const achievedGoal = state.goalAchievements[key];
+    const isToday = start === today;
     return {
       day: i + 1,
       start,
       minutes: activity?.minutes ?? 0,
       count: activity?.sessions.length ?? 0,
+      tasksDone,
+      goal: achievedGoal ?? (isToday ? state.dailyGoal : null),
+      goalMet: isToday ? tasksDone >= state.dailyGoal : achievedGoal !== undefined,
       future: start > today,
-      isToday: start === today,
+      isToday,
     };
   });
 
@@ -97,6 +126,9 @@ export function FocusActivity() {
   const selectedMinutes = selectedActivity?.minutes ?? 0;
   const selectedSessions = selectedActivity?.sessions ?? [];
   const selectedLabel = formatDayLabel(selected, today);
+  const selectedDay = days.find((d) => d.start === selected);
+  const selectedTasksDone = selectedDay?.tasksDone ?? tasksByDay.get(dayKey(selected)) ?? 0;
+  const selectedGoalReached = selectedDay?.goalMet ?? state.goalAchievements[dayKey(selected)] !== undefined;
 
   return (
     <section className="card activity" aria-labelledby="activity-title">
@@ -107,7 +139,7 @@ export function FocusActivity() {
           </h2>
           <p className="card__sub" aria-live="polite">
             {monthMinutes > 0
-              ? `${monthMinutes} min across ${plural(activeDays, 'day')} in ${monthLabel}`
+              ? `${displayDuration(monthMinutes)} across ${plural(activeDays, 'day')} in ${monthLabel}`
               : `No focus sessions recorded in ${monthLabel}`}
           </p>
         </div>
@@ -146,14 +178,25 @@ export function FocusActivity() {
           </div>
           <div className="day-detail__stats">
             <div>
-              <span className="day-detail__value">{selectedMinutes}</span>
-              <span className="day-detail__label">focus minutes</span>
+              <span className="day-detail__value">{displayDuration(selectedMinutes)}</span>
+              <span className="day-detail__label">focus time</span>
             </div>
             <div>
               <span className="day-detail__value">{selectedSessions.length}</span>
               <span className="day-detail__label">{selectedSessions.length === 1 ? 'session' : 'sessions'}</span>
             </div>
           </div>
+          <p className={`day-detail__goal ${selectedGoalReached ? 'is-achieved' : ''}`}>
+            {selectedGoalReached ? (
+              <>
+                <Icon name="check" size={14} /> Daily task goal reached
+              </>
+            ) : selected === today ? (
+              `${selectedTasksDone} of ${state.dailyGoal} tasks completed toward today's goal`
+            ) : (
+              `${plural(selectedTasksDone, 'task')} completed`
+            )}
+          </p>
         </div>
 
         {selectedSessions.length > 0 ? (
@@ -220,18 +263,22 @@ function FocusChart({
   const [hover, setHover] = useState<number | null>(null);
   const { refs, onKeyDown, tabStop } = useRovingKeys(days, selected, onSelect, 0);
   const peak = Math.max(0, ...days.map((d) => d.minutes));
-  const max = peak > 0 ? niceMax(peak) : 60;
+  const max = peak > 0 ? niceMax(peak) : 1;
   const empty = peak === 0;
   const ticks = [1, 8, 15, 22, 29].filter((d) => d <= days.length);
   const tip = hover !== null ? days[hover] : null;
 
   return (
     <div className="chart">
+      <div className="chart__caption">
+        <strong>Daily focus time</strong>
+        <span>Scale adjusts automatically to your longest day</span>
+      </div>
       <div className="chart__plot" onMouseLeave={() => setHover(null)}>
         <div className="chart__grid" aria-hidden="true">
-          {[1, 0.5, 0].map((f) => (
+          {!empty && [1, 0.5, 0].map((f) => (
             <div key={f} className="chart__gridline" style={{ bottom: `${f * 100}%` }}>
-              <span className="chart__ylabel">{f === 1 ? `${Math.round(max * f)} min` : Math.round(max * f)}</span>
+              <span className="chart__ylabel">{displayDuration(Math.round(max * f))}</span>
             </div>
           ))}
         </div>
@@ -268,14 +315,14 @@ function FocusChart({
               {shortDate(tip.start)}
               {tip.isToday ? ' · Today' : ''}
             </span>
-            <span className="chart__tip-value">{tip.count > 0 ? `${tip.minutes} min · ${plural(tip.count, 'session')}` : 'No focus'}</span>
+            <span className="chart__tip-value">{tip.count > 0 ? `${displayDuration(tip.minutes)} · ${plural(tip.count, 'session')}` : 'No focus'}</span>
           </div>
         )}
 
         {empty && (
           <div className="chart__empty">
             <Icon name="zap" size={16} />
-            <span>No focus sessions this month yet</span>
+            <span>No sessions yet — the chart will scale as you focus</span>
           </div>
         )}
       </div>
@@ -344,7 +391,7 @@ function MonthCalendar({
             key={d.day}
             ref={(el) => (refs.current[i] = el)}
             type="button"
-            className={`cal__day ${d.isToday ? 'is-today' : ''} ${d.start === selected ? 'is-selected' : ''} ${d.count > 0 ? 'has-activity' : ''}`}
+            className={`cal__day ${d.isToday ? 'is-today' : ''} ${d.start === selected ? 'is-selected' : ''} ${d.goalMet ? 'is-goal-met' : ''} ${d.count > 0 ? 'has-activity' : ''}`}
             disabled={d.future}
             tabIndex={i === tabStop ? 0 : -1}
             aria-pressed={d.start === selected}
@@ -359,6 +406,9 @@ function MonthCalendar({
         ))}
       </div>
       <div className="cal__legend" aria-hidden="true">
+        <span>
+          <i className="cal__legend-goal" /> Daily task goal met
+        </span>
         <span>
           <i className="cal__legend-dot" /> Focus recorded
         </span>
