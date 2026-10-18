@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './components/Icon';
-import { MobileTabBar, MobileTopBar, Sidebar } from './components/Navigation';
+import { SessionPill } from './components/Navigation';
 import { useNow } from './hooks/useNow';
 import { useRoute } from './hooks/useRoute';
 import { formatClock, getRemainingMs } from './lib/time';
@@ -88,16 +88,16 @@ export default function App() {
         Skip to content
       </a>
       <div className="app">
-        <Sidebar />
-        <div className="app__main">
-          <MobileTopBar />
-          <main id="main" className="main" key={route}>
-            {route === 'today' && <Today />}
-            {route === 'tasks' && <Tasks />}
-            {route === 'focus' && <Focus />}
-          </main>
-        </div>
-        <MobileTabBar />
+        <main id="main" className="main" key={route}>
+          {route === 'today' && <Today />}
+          {route === 'tasks' && <Tasks />}
+          {route === 'focus' && <Focus />}
+        </main>
+        {route !== 'focus' && (
+          <div className="floating-session">
+            <SessionPill variant="mobile" />
+          </div>
+        )}
       </div>
 
       <div className="sr-only" aria-live="polite" role="status">
