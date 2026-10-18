@@ -39,6 +39,11 @@ const displayDuration = (minutes: number): string => {
   const rest = minutes % 60;
   return hours === 0 ? `${minutes} min` : rest === 0 ? `${hours} hr` : `${hours} hr ${rest} min`;
 };
+const axisDuration = (minutes: number): string => {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return hours === 0 ? `${minutes}m` : rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+};
 const describe = (d: DayCell) => {
   const focus = d.count > 0 ? `${displayDuration(d.minutes)} focused, ${plural(d.count, 'session')}` : 'No focus sessions';
   const goals = d.goalMet ? 'Daily task goal achieved' : `${plural(d.tasksDone, 'task')} completed`;
@@ -278,7 +283,7 @@ function FocusChart({
         <div className="chart__grid" aria-hidden="true">
           {!empty && [1, 0.5, 0].map((f) => (
             <div key={f} className="chart__gridline" style={{ bottom: `${f * 100}%` }}>
-              <span className="chart__ylabel">{displayDuration(Math.round(max * f))}</span>
+              <span className="chart__ylabel">{axisDuration(Math.round(max * f))}</span>
             </div>
           ))}
         </div>
