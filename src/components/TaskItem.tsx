@@ -56,7 +56,7 @@ export function TaskItem({ task, showDelete = true }: TaskItemProps) {
   const remove = () => {
     const index = state.tasks.findIndex((t) => t.id === task.id);
     const timerSnapshot = state.timers[task.id] ?? null;
-    dispatch({ type: 'deleteTask', id: task.id });
+    dispatch({ type: 'deleteTask', id: task.id, now: Date.now() });
     showToast({
       message: 'Task deleted',
       actionLabel: 'Undo',
