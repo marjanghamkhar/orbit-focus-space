@@ -87,10 +87,16 @@ export function Today() {
           </h1>
           <p className="page-header__sub">{subtitle}</p>
         </div>
-        <button type="button" className="btn btn--primary btn--lg page-header__cta" onClick={startFocusing}>
-          <Icon name={sessionActive ? 'timer' : 'play'} size={16} />
-          {sessionActive ? 'Return to session' : 'Start focusing'}
-        </button>
+        <div className="page-header__actions">
+          <button type="button" className="btn btn--secondary" onClick={() => navigate('tasks')}>
+            <Icon name="arrowLeft" size={16} />
+            My Tasks
+          </button>
+          <button type="button" className="btn btn--primary btn--lg" onClick={startFocusing}>
+            <Icon name={sessionActive ? 'timer' : 'play'} size={16} />
+            {sessionActive ? 'Return to session' : 'Start focusing'}
+          </button>
+        </div>
       </header>
 
       {guideHidden ? (
