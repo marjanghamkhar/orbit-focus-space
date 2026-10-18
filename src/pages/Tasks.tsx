@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { AddTaskForm } from '../components/AddTaskForm';
 import { EmptyState } from '../components/EmptyState';
 import { TaskItem } from '../components/TaskItem';
+import { Icon } from '../components/Icon';
+import { useUi } from '../state/UiContext';
 import { plural } from '../lib/time';
 import { sortTasks, useOrbit } from '../state/OrbitContext';
 
@@ -15,6 +17,7 @@ const FILTERS: { id: Filter; label: string }[] = [
 
 export function Tasks() {
   const { state } = useOrbit();
+  const { navigate } = useUi();
   const [filter, setFilter] = useState<Filter>('all');
 
   const counts = {
@@ -29,9 +32,9 @@ export function Tasks() {
 
   return (
     <div className="page page--tasks">
-      <header className="page-header">
+      <header className="page-header page-header--tasks">
         <div>
-          <p className="eyebrow">Plan</p>
+          <p className="eyebrow">ORBIT · YOUR FOCUS SPACE</p>
           <h1 id="page-title" tabIndex={-1}>
             My Tasks
           </h1>
@@ -41,6 +44,16 @@ export function Tasks() {
               : `${plural(counts.active, 'open task')} · ${counts.completed} completed`}
           </p>
         </div>
+        <nav className="workspace-links" aria-label="Explore Orbit">
+          <button type="button" className="workspace-link" onClick={() => navigate('today')}>
+            <Icon name="home" size={16} />
+            Overview
+          </button>
+          <button type="button" className="workspace-link workspace-link--accent" onClick={() => navigate('focus')}>
+            <Icon name="timer" size={16} />
+            Focus
+          </button>
+        </nav>
       </header>
 
       <section className="card card--flush-bottom" aria-label="Add a task">
