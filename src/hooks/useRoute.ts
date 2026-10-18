@@ -5,7 +5,7 @@ const ROUTES: Route[] = ['today', 'tasks', 'focus'];
 
 function parseHash(): Route {
   const h = window.location.hash.replace(/^#\/?/, '');
-  return (ROUTES as string[]).includes(h) ? (h as Route) : 'today';
+  return (ROUTES as string[]).includes(h) ? (h as Route) : 'tasks';
 }
 
 /** Tiny hash router, so the browser back button and refresh keep the current section. */
