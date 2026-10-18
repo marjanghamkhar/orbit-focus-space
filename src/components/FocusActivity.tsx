@@ -136,7 +136,8 @@ export function FocusActivity() {
   const selectedGoalReached = selectedDay?.goalMet ?? state.goalAchievements[dayKey(selected)] !== undefined;
 
   return (
-    <section className="card activity" aria-labelledby="activity-title">
+    <div className="activity-sections">
+      <section className="card activity-card activity-card--chart" aria-labelledby="activity-title">
       <div className="card__head activity__head">
         <div>
           <h2 id="activity-title" className="card__title">
@@ -170,12 +171,21 @@ export function FocusActivity() {
         </div>
       </div>
 
-      <div className="activity__grid">
         <FocusChart days={days} selected={selected} onSelect={select} monthLabel={monthLabel} />
-        <MonthCalendar view={view} days={days} selected={selected} onSelect={select} />
-      </div>
+      </section>
 
-      <div className="day-detail" aria-live="polite">
+      <section className="card activity-card activity-card--calendar" aria-labelledby="calendar-title">
+        <div className="activity-calendar__header">
+          <div>
+            <h2 id="calendar-title" className="card__title">Daily goals calendar</h2>
+            <p className="card__sub">Green days mean you reached your task goal. Select a date to explore your progress.</p>
+          </div>
+          <span className="activity-calendar__month">{monthLabel}</span>
+        </div>
+
+        <MonthCalendar view={view} days={days} selected={selected} onSelect={select} />
+
+        <div className="day-detail" aria-live="polite">
         <div className="day-detail__summary">
           <div className="day-detail__title">
             <h3>{selectedLabel}</h3>
@@ -228,8 +238,9 @@ export function FocusActivity() {
             </EmptyState>
           </div>
         )}
-      </div>
-    </section>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -276,14 +287,17 @@ function FocusChart({
   return (
     <div className="chart">
       <div className="chart__caption">
-        <strong>Daily focus time</strong>
-        <span>Scale adjusts automatically to your longest day</span>
+        <div className="chart__caption-main">
+          <span className="chart__legend-swatch" aria-hidden="true" />
+          <strong>Daily focus time</strong>
+        </div>
+        <span>Each bar represents one day · Scales to your activity</span>
       </div>
       <div className="chart__plot" onMouseLeave={() => setHover(null)}>
         <div className="chart__grid" aria-hidden="true">
-          {!empty && [1, 0.5, 0].map((f) => (
+          {[1, 0.75, 0.5, 0.25, 0].map((f) => (
             <div key={f} className="chart__gridline" style={{ bottom: `${f * 100}%` }}>
-              <span className="chart__ylabel">{axisDuration(Math.round(max * f))}</span>
+              <span className="chart__ylabel">{empty ? (f === 0 ? '0' : '') : axisDuration(Math.round(max * f))}</span>
             </div>
           ))}
         </div>
@@ -294,7 +308,7 @@ function FocusChart({
               key={d.day}
               ref={(el) => (refs.current[i] = el)}
               type="button"
-              className={`chart__col ${d.start === selected ? 'is-selected' : ''} ${d.isToday ? 'is-today' : ''}`}
+              className={`chart__col ${d.start === selected ? 'is-selected' : ''} ${d.isToday ? 'is-today' : ''} ${d.minutes > 0 ? 'has-bar' : ''}`}
               disabled={d.future}
               tabIndex={i === tabStop ? 0 : -1}
               aria-pressed={d.start === selected}
@@ -327,7 +341,7 @@ function FocusChart({
         {empty && (
           <div className="chart__empty">
             <Icon name="zap" size={16} />
-            <span>No sessions yet — the chart will scale as you focus</span>
+            <span>Your chart starts with your first completed focus session</span>
           </div>
         )}
       </div>
@@ -335,10 +349,12 @@ function FocusChart({
       <div className="chart__x" aria-hidden="true">
         {ticks.map((t) => (
           <span key={t} style={{ left: `${((t - 0.5) / days.length) * 100}%` }}>
-            {t}
+            {shortDate(days[t - 1].start)}
           </span>
         ))}
       </div>
+
+      <div className="chart__footnote">Tap a day in the chart to see its focus time and tasks below.</div>
 
       <table className="sr-only">
         <caption>Focus minutes per day, {monthLabel}</caption>
