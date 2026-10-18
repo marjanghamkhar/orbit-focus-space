@@ -9,6 +9,7 @@ import {
   type OrbitState,
   type Task,
 } from './types';
+import { dayKey } from './activity';
 
 export const STORAGE_KEY = 'orbit:v1';
 
@@ -29,6 +30,7 @@ export function createInitialState(): OrbitState {
   return {
     tasks: [],
     dailyGoal: DEFAULT_GOAL,
+    goalAchievements: {},
     sessions: [],
     timers: {},
     activeKey: FREE_FOCUS_KEY,
@@ -105,6 +107,28 @@ export function parseState(raw: unknown): OrbitState {
     ? raw.sessions.map(parseSession).filter((s): s is FocusSession => s !== null)
     : [];
   const goal = num(raw.dailyGoal);
+  const dailyGoal = goal === null ? DEFAULT_GOAL : Math.min(MAX_GOAL, Math.max(MIN_GOAL, Math.round(goal)));
+  const goalAchievements: Record<string, number> = {};
+  if (isObj(raw.goalAchievements)) {
+    for (const [day, level] of Object.entries(raw.goalAchievements)) {
+      const n = num(level);
+      if (/^\\d{4}-\\d{2}-\\d{2}$/.test(day) && n !== null && Number.isInteger(n) && n >= MIN_GOAL && n <= MAX_GOAL) {
+        goalAchievements[day] = n;
+      }
+    }
+  } else {
+    // Backfill only when existing completed task timestamps give evidence of a reached goal.
+    // Older goal changes cannot be reconstructed; the saved current goal is the best available estimate.
+    const completedByDay = new Map<string, number>();
+    for (const task of tasks) {
+      if (!task.completed || task.completedAt === null) continue;
+      const day = dayKey(task.completedAt);
+      completedByDay.set(day, (completedByDay.get(day) ?? 0) + 1);
+    }
+    for (const [day, count] of completedByDay) {
+      if (count >= dailyGoal) goalAchievements[day] = dailyGoal;
+    }
+  }
 
   const timers: Record<string, FocusTimer> = {};
   let activeKey = FREE_FOCUS_KEY;
@@ -144,7 +168,8 @@ export function parseState(raw: unknown): OrbitState {
   return {
     tasks,
     sessions,
-    dailyGoal: goal === null ? DEFAULT_GOAL : Math.min(MAX_GOAL, Math.max(MIN_GOAL, Math.round(goal))),
+    dailyGoal,
+    goalAchievements,
     timers,
     activeKey,
     guideDismissed: raw.guideDismissed === true,
