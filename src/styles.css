@@ -3233,3 +3233,286 @@ kbd {
     margin-bottom: 22px;
   }
 }
+
+
+/* =========================================================
+   Visual refinement: distinct chart and calendar cards
+   ========================================================= */
+.activity-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  margin-top: 2px;
+}
+
+.activity-card {
+  padding: 28px 30px 30px;
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 8px 28px -23px rgba(42, 35, 85, 0.16), var(--shadow-xs);
+}
+
+.activity-card--chart {
+  min-width: 0;
+}
+
+.activity-card--chart .activity__head {
+  align-items: center;
+  margin-bottom: 26px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.activity-calendar__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 26px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.activity-calendar__header .card__sub {
+  margin-top: 5px;
+  max-width: 480px;
+  line-height: 1.5;
+}
+
+.activity-calendar__month {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-2);
+}
+
+.activity-card--calendar > .cal {
+  width: 100%;
+  max-width: 630px;
+  margin: 0 auto;
+}
+
+.activity-card--calendar .cal__grid,
+.activity-card--calendar .cal__weekdays {
+  gap: 8px;
+}
+
+.activity-card--calendar .cal__day {
+  height: 48px;
+}
+
+.activity-card--calendar .day-detail {
+  margin-top: 28px;
+}
+
+/* Chart: show an unmistakable plotting area, scale, and clickable columns. */
+.activity-card--chart .chart {
+  position: relative;
+  padding-top: 0;
+}
+
+.activity-card--chart .chart__caption {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-bottom: 28px;
+}
+
+.chart__caption-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.chart__legend-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.activity-card--chart .chart__plot {
+  height: 250px;
+  margin-left: 58px;
+  border-bottom: 2px solid var(--border-strong);
+}
+
+.activity-card--chart .chart__gridline {
+  border-top: 1px dashed #e0e2ea;
+}
+
+.activity-card--chart .chart__gridline:last-child {
+  border-top: 0;
+}
+
+.activity-card--chart .chart__ylabel {
+  right: calc(100% + 13px);
+  font-weight: 600;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+
+.activity-card--chart .chart__col {
+  padding: 0 2px;
+  border-radius: 7px 7px 0 0;
+}
+
+.activity-card--chart .chart__col:hover:not(:disabled) {
+  background: rgba(101, 82, 232, 0.09);
+}
+
+.activity-card--chart .chart__col.is-selected {
+  background: rgba(101, 82, 232, 0.095);
+}
+
+.activity-card--chart .chart__bar {
+  max-width: 26px;
+  min-height: 4px;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(0deg, #8473f0, var(--accent));
+  transition: height 0.5s var(--ease-out), background 0.2s;
+}
+
+.activity-card--chart .chart__col.is-selected .chart__bar {
+  background: #4a37c8;
+}
+
+.activity-card--chart .chart__x {
+  height: 24px;
+  margin: 14px 0 0 58px;
+}
+
+.activity-card--chart .chart__x span {
+  white-space: nowrap;
+  font-weight: 550;
+  font-size: 11.5px;
+}
+
+.activity-card--chart .chart__footnote {
+  margin: 14px 0 0 58px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.activity-card--chart .chart:has(.chart__empty) .chart__plot,
+.activity-card--chart .chart:has(.chart__empty) .chart__x {
+  margin-left: 58px;
+}
+
+.activity-card--chart .chart__empty {
+  gap: 10px;
+  padding: 10px;
+  text-align: center;
+  line-height: 1.45;
+}
+
+.activity-card--chart .chart__empty::before {
+  width: min(370px, 86%);
+  height: 64px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: var(--shadow-sm);
+}
+
+.activity-card--chart .chart__empty span {
+  max-width: 270px;
+  line-height: 1.4;
+}
+
+@media (max-width: 860px) {
+  .activity-sections {
+    gap: 22px;
+  }
+
+  .activity-card--chart .chart__plot,
+  .activity-card--chart .chart__x,
+  .activity-card--chart .chart__footnote,
+  .activity-card--chart .chart:has(.chart__empty) .chart__plot,
+  .activity-card--chart .chart:has(.chart__empty) .chart__x {
+    margin-left: 52px;
+  }
+}
+
+@media (max-width: 560px) {
+  .activity-card {
+    padding: 20px 16px 22px;
+    border-radius: 16px;
+  }
+
+  .activity-card--chart .activity__head,
+  .activity-calendar__header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+  }
+
+  .activity-card--chart .chart__caption {
+    margin-bottom: 18px;
+  }
+
+  .activity-card--chart .chart__caption > span {
+    font-size: 11.5px;
+  }
+
+  .activity-card--chart .chart__plot {
+    height: 206px;
+  }
+
+  .activity-card--chart .chart__plot,
+  .activity-card--chart .chart__x,
+  .activity-card--chart .chart__footnote,
+  .activity-card--chart .chart:has(.chart__empty) .chart__plot,
+  .activity-card--chart .chart:has(.chart__empty) .chart__x {
+    margin-left: 36px;
+  }
+
+  .activity-card--chart .chart__ylabel {
+    right: calc(100% + 7px);
+    font-size: 10px;
+  }
+
+  .activity-card--chart .chart__col {
+    padding: 0 1px;
+  }
+
+  .activity-card--chart .chart__x span {
+    font-size: 10.5px;
+  }
+
+  .activity-card--chart .chart__footnote {
+    line-height: 1.45;
+  }
+
+  .activity-card--calendar .cal__grid,
+  .activity-card--calendar .cal__weekdays {
+    gap: 4px;
+  }
+
+  .activity-card--calendar .cal__day {
+    height: 40px;
+  }
+
+  .activity-card--calendar .day-detail {
+    margin-top: 22px;
+  }
+
+  .activity-calendar__month {
+    align-self: flex-start;
+  }
+}
