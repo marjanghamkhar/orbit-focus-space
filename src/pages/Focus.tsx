@@ -166,9 +166,9 @@ export function Focus() {
                 : 'Pick a task, choose a length, and press start.'}
           </p>
         </div>
-        <button type="button" className="btn btn--secondary page-header__cta" onClick={() => navigate('today')}>
+        <button type="button" className="btn btn--secondary page-header__back" onClick={() => navigate('tasks')}>
           <Icon name="arrowLeft" size={16} />
-          Back to Overview
+          My Tasks
         </button>
       </header>
 
